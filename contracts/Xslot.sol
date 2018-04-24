@@ -53,6 +53,8 @@ contract Xslot is Mortal {
     Game[] public games;                                // games
     mapping (address => uint) private balances;         // balances per address
 
+    uint16 private columnCount = 5
+
     uint public spinBet = 100 finney;
 
     bytes32 private seed;
@@ -89,7 +91,7 @@ contract Xslot is Mortal {
     function _getRandomNum(bytes32 hash) onlyUser internal returns (uint32) {
       nonce++;
       seed = keccak256(now, nonce);
-      return uint32(keccak256(hash, seed)) % 1000;
+      return uint32(keccak256(hash, seed)) % (10 ^ columnCount);
     }
 
     function _createNewGame() onlyUser internal returns (Game) {
@@ -103,6 +105,13 @@ contract Xslot is Mortal {
       newGame.blockNumber = block.number;
       newGame.hash = block.blockhash(block.number);
       newGame.number = _getRandomNum(newGame.hash);
+
+      uint32 iteratorNum = newGame.number;
+      for(uint16 i = 0; i < columnCount; ++i) {
+        uint8 digital = iteratorNum % 10;
+        iteratorNum = iteratorNum / 10;
+      }
+
 
       uint8 firstNum = uint8(newGame.number / 100);
       uint8 thirdNum = uint8(newGame.number % 10);
