@@ -10,7 +10,8 @@ contract Ownable {
    * @dev The Ownable constructor sets the original `owner` of the contract to the sender
    * account.
    */
-  function Ownable() public {
+
+  constructor() public {
     owner = msg.sender;
   }
 
@@ -53,7 +54,7 @@ contract Xslot is Mortal {
     Game[] public games;                                // games
     mapping (address => uint) private balances;         // balances per address
 
-    uint16 private columnCount = 5
+    uint private columnCount = 5;
 
     uint public spinBet = 100 finney;
 
@@ -80,7 +81,7 @@ contract Xslot is Mortal {
       GameResult result
     );
 
-    function Xslot() public {
+    constructor() public {
       owner = msg.sender;
     }
 
@@ -88,10 +89,19 @@ contract Xslot is Mortal {
 
     }
 
+    function getRandomNumTest() onlyOwner public returns (uint32) {
+        uint32 ran = _getRandomNum(blockhash(block.number));
+      return ran;
+    }
+
     function _getRandomNum(bytes32 hash) onlyUser internal returns (uint32) {
       nonce++;
       seed = keccak256(now, nonce);
-      return uint32(keccak256(hash, seed)) % (10 ^ columnCount);
+      return uint32(uint32(keccak256(hash, seed)) % (10 ** columnCount));
+    }
+
+    struct mapCountStruct {
+        mapping (uint32 => uint8) numCountMap;
     }
 
     function _createNewGame() onlyUser internal returns (Game) {
@@ -103,30 +113,30 @@ contract Xslot is Mortal {
       newGame.amount = msg.value;
 
       newGame.blockNumber = block.number;
-      newGame.hash = block.blockhash(block.number);
+      newGame.hash = blockhash(block.number);
       newGame.number = _getRandomNum(newGame.hash);
 
+
+      mapCountStruct storage mapCount;
       uint32 iteratorNum = newGame.number;
+      newGame.result = GameResult.LOST;
       for(uint16 i = 0; i < columnCount; ++i) {
-        uint8 digital = iteratorNum % 10;
+        uint32 columnNum = iteratorNum % 10;
+        mapCount.numCountMap[columnNum] += 1;
         iteratorNum = iteratorNum / 10;
+
+        if(mapCount.numCountMap[columnNum] >= 3) {
+          newGame.result = GameResult.WON;
+          newGame.prize = getBalance();
+        } else if(mapCount.numCountMap[columnNum] >= 2 && newGame.result != GameResult.WON) {
+          newGame.result = GameResult.DRAW;
+          newGame.prize = newGame.amount;
+        } else {
+          newGame.result = GameResult.LOST;
+          newGame.prize = 0;
+        }
       }
 
-
-      uint8 firstNum = uint8(newGame.number / 100);
-      uint8 thirdNum = uint8(newGame.number % 10);
-      uint8 secondNum = uint8(newGame.number % 100 / 10);
-
-      if(firstNum == secondNum && firstNum == thirdNum) {
-        newGame.result = GameResult.WON;
-        newGame.prize = getBalance();
-      } else if(firstNum == secondNum || secondNum == thirdNum || firstNum == thirdNum) {
-        newGame.result = GameResult.DRAW;
-        newGame.prize = newGame.amount;
-      } else {
-        newGame.result = GameResult.LOST;
-        newGame.prize = 0;
-      }
       games.push(newGame);
       return games[gameId];
     }
