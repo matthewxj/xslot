@@ -100,10 +100,6 @@ contract Xslot is Mortal {
       return uint32(uint32(keccak256(hash, seed)) % (10 ** columnCount));
     }
 
-    struct mapCountStruct {
-        mapping (uint32 => uint8) numCountMap;
-    }
-
     function _createNewGame() onlyUser internal returns (Game) {
       uint gameId = games.length;
       Game memory newGame;
@@ -116,25 +112,37 @@ contract Xslot is Mortal {
       newGame.hash = blockhash(block.number);
       newGame.number = _getRandomNum(newGame.hash);
 
-
-      mapCountStruct storage mapCount;
       uint32 iteratorNum = newGame.number;
       newGame.result = GameResult.LOST;
-      for(uint16 i = 0; i < columnCount; ++i) {
-        uint32 columnNum = iteratorNum % 10;
-        mapCount.numCountMap[columnNum] += 1;
-        iteratorNum = iteratorNum / 10;
+      uint32[] memory nums = new uint32[](columnCount);
 
-        if(mapCount.numCountMap[columnNum] >= 3) {
-          newGame.result = GameResult.WON;
-          newGame.prize = getBalance();
-        } else if(mapCount.numCountMap[columnNum] >= 2 && newGame.result != GameResult.WON) {
-          newGame.result = GameResult.DRAW;
-          newGame.prize = newGame.amount;
-        } else {
-          newGame.result = GameResult.LOST;
-          newGame.prize = 0;
+      for(uint32 i = 0; i < columnCount; ++i) {
+        uint32 columnNum = iteratorNum % 10;
+        iteratorNum = iteratorNum / 10;
+        nums[i] = columnNum;
+      }
+
+      uint32 maxCount = 0;
+      for(uint32 k = 0; k < columnCount; ++k) {
+        uint32 numSameCount = 1;
+        for(uint32 j = 0; j < columnCount; ++j) {
+          if(k != j && nums[k] == nums[j])
+          numSameCount++;
         }
+        if(numSameCount > maxCount) {
+          maxCount = numSameCount;
+        }
+      }
+
+      if(maxCount >= 3) {
+        newGame.result = GameResult.WON;
+        newGame.prize = getBalance() / 2;
+      } else if(maxCount == 2) {
+        newGame.result = GameResult.DRAW;
+        newGame.prize = newGame.amount / 2;
+      } else {
+        newGame.result = GameResult.LOST;
+        newGame.prize = 0;
       }
 
       games.push(newGame);
